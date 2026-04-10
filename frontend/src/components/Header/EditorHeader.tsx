@@ -5,6 +5,7 @@ interface EditorHeaderProps {
   onSave: (label?: string) => Promise<void>;
   onDiscard: () => void;
   onHistory: () => void;
+  onCodeView: () => void;
   saving: boolean;
   onBack: () => void;
 }
@@ -13,6 +14,7 @@ export default function EditorHeader({
   onSave,
   onDiscard,
   onHistory,
+  onCodeView,
   saving,
   onBack,
 }: EditorHeaderProps) {
@@ -52,6 +54,13 @@ export default function EditorHeader({
           title="Re-layout nodes with Dagre"
         >
           ⚙ Re-layout
+        </button>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={onCodeView}
+          title="View diagram JSON"
+        >
+          {'{ }'}
         </button>
         <button
           className="btn btn-ghost btn-sm"

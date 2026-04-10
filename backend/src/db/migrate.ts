@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import pool from './index';
 
-async function migrate(): Promise<void> {
+export async function runMigrations(options: { closePool?: boolean } = {}): Promise<void> {
   const migrationsDir = path.join(__dirname, 'migrations');
   const files = fs
     .readdirSync(migrationsDir)
@@ -17,11 +17,16 @@ async function migrate(): Promise<void> {
     console.log(`  ✓ ${file}`);
   }
 
-  await pool.end();
+  if (options.closePool) {
+    await pool.end();
+  }
+
   console.log('All migrations complete.');
 }
 
-migrate().catch((err) => {
-  console.error('Migration failed:', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  runMigrations({ closePool: true }).catch((err) => {
+    console.error('Migration failed:', err);
+    process.exit(1);
+  });
+}

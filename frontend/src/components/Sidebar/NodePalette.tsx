@@ -1,5 +1,14 @@
 import { useReactFlow } from 'reactflow';
 import { useDiagramStore, type EdgeStyle } from '../../stores/diagramStore';
+import { DIAGRAM_ICONS } from '../../utils/diagramIcons';
+
+/** Group item appended to every palette map */
+const GROUP_ITEM = {
+  label: 'Group',
+  type: 'groupNode',
+  icon: '▭',
+  data: { label: 'Group', color: '#94a3b8' },
+};
 
 const ARCH_ITEMS = [
   { label: 'Service',  type: 'archNode', icon: '⚙️',  data: { name: 'Service',  serviceType: 'API',      color: '#6366f1' } },
@@ -48,12 +57,12 @@ interface PaletteItem {
 }
 
 const PALETTE_MAP: Record<string, PaletteItem[]> = {
-  architecture: ARCH_ITEMS,
-  flowchart:    FLOW_ITEMS,
-  erd:          ERD_ITEMS,
-  class:        CLASS_ITEMS,
-  component:    COMPONENT_ITEMS,
-  activity:     ACTIVITY_ITEMS,
+  architecture: [...ARCH_ITEMS,      GROUP_ITEM],
+  flowchart:    [...FLOW_ITEMS,      GROUP_ITEM],
+  erd:          [...ERD_ITEMS,       GROUP_ITEM],
+  class:        [...CLASS_ITEMS,     GROUP_ITEM],
+  component:    [...COMPONENT_ITEMS, GROUP_ITEM],
+  activity:     [...ACTIVITY_ITEMS,  GROUP_ITEM],
 };
 
 const EDGE_STYLES: { value: EdgeStyle; label: string }[] = [
@@ -68,9 +77,12 @@ interface NodePaletteProps {
 }
 
 export default function NodePalette({ collapsed, onToggle }: NodePaletteProps) {
-  const { meta, edgeStyle, setEdgeStyle } = useDiagramStore();
+  const { meta, edgeStyle, setEdgeStyle, edgeAnimated, setEdgeAnimated, edgeIcon, setEdgeIcon } = useDiagramStore();
   const { fitView, zoomIn, zoomOut } = useReactFlow();
   const items = PALETTE_MAP[meta?.diagramType ?? ''] ?? [];
+
+  // A small curated list of edge icons (relationship-oriented)
+  const EDGE_ICON_KEYS = ['zap', 'link', 'git-branch', 'activity', 'lock', 'key', 'workflow', 'network'];
 
   function handleDragStart(
     e: React.DragEvent,
@@ -130,6 +142,56 @@ export default function NodePalette({ collapsed, onToggle }: NodePaletteProps) {
                   {s.label}
                 </button>
               ))}
+            </div>
+
+            {/* Animated toggle */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+              <button
+                className={`edge-style-btn${edgeAnimated ? ' active' : ''}`}
+                onClick={() => setEdgeAnimated(!edgeAnimated)}
+                style={{ flex: 1 }}
+                title="New edges will be animated (dashed marching ants)"
+              >
+                {edgeAnimated ? '🎬 Animated' : 'Animated'}
+              </button>
+            </div>
+
+            {/* Edge icon mini-picker */}
+            <p className="sidebar-section-title" style={{ marginTop: 10 }}>Edge icon (new)</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {/* None */}
+              <button
+                title="No icon"
+                onClick={() => setEdgeIcon(undefined)}
+                style={{
+                  width: 28, height: 28,
+                  border: `2px solid ${!edgeIcon ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                  borderRadius: 5,
+                  background: !edgeIcon ? 'var(--color-primary-muted, #eef2ff)' : 'var(--color-bg-surface)',
+                  cursor: 'pointer', fontSize: 10, color: 'var(--color-text-muted)',
+                }}
+              >∅</button>
+              {EDGE_ICON_KEYS.map((key) => {
+                const IconComp = DIAGRAM_ICONS[key];
+                const isSelected = edgeIcon === key;
+                return (
+                  <button
+                    key={key}
+                    title={key}
+                    onClick={() => setEdgeIcon(key)}
+                    style={{
+                      width: 28, height: 28,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      border: `2px solid ${isSelected ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                      borderRadius: 5,
+                      background: isSelected ? 'var(--color-primary-muted, #eef2ff)' : 'var(--color-bg-surface)',
+                      cursor: 'pointer', padding: 0,
+                    }}
+                  >
+                    <IconComp size={14} color={isSelected ? 'var(--color-primary)' : 'var(--color-text-muted)'} />
+                  </button>
+                );
+              })}
             </div>
           </div>
 

@@ -1,5 +1,8 @@
 import { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
+import { NodeResizer } from '@reactflow/node-resizer';
+import '@reactflow/node-resizer/dist/style.css';
+import { Puzzle } from 'lucide-react';
 
 export interface ComponentInterface {
   name: string;
@@ -14,10 +17,11 @@ export interface ComponentNodeData {
 function ComponentNode({ data, selected }: NodeProps<ComponentNodeData>) {
   return (
     <div className={`component-node${selected ? ' selected' : ''}`}>
+      <NodeResizer minWidth={140} minHeight={60} isVisible={selected} />
       <Handle type="target" position={Position.Left} />
       <Handle type="target" position={Position.Top} id="top" />
       <div className="component-node__header">
-        <span>🧩</span>
+        <Puzzle size={13} style={{ flexShrink: 0, opacity: 0.8 }} />
         <span>{data.componentName}</span>
       </div>
       {(data.interfaces ?? []).length > 0 && (

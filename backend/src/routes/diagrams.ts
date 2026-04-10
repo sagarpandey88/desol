@@ -22,12 +22,14 @@ const CreateSchema = z.object({
     'component',
     'activity',
   ]),
+  project_id: z.string().uuid().nullable().optional(),
 });
 
 const UpdateSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   flow_data: z.record(z.unknown()).optional(),
   label: z.string().max(255).optional(),
+  project_id: z.string().uuid().nullable().optional(),
 });
 
 const router = Router();

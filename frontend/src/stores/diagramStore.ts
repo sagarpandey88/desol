@@ -19,6 +19,18 @@ export interface DiagramMeta {
 
 export type EdgeStyle = 'default' | 'smoothstep' | 'straight';
 
+function normalizeNode(node: Node): Node {
+  if (node.type !== 'groupNode') return node;
+  return {
+    ...node,
+    zIndex: -1,
+  };
+}
+
+function normalizeNodes(nodes: Node[]): Node[] {
+  return nodes.map(normalizeNode);
+}
+
 interface DiagramState {
   meta: DiagramMeta | null;
   nodes: Node[];
@@ -31,7 +43,12 @@ interface DiagramState {
     viewport: Viewport;
   } | null;
   edgeStyle: EdgeStyle;
+  /** Whether new edges are created with animation by default */
+  edgeAnimated: boolean;
+  /** Default Lucide icon key for new edges (e.g. 'zap') */
+  edgeIcon: string | undefined;
   selectedNodeId: string | null;
+  selectedEdgeId: string | null;
 
   // Actions
   loadDiagram: (
@@ -45,10 +62,18 @@ interface DiagramState {
   onConnect: (connection: Connection) => void;
   addNode: (node: Node) => void;
   updateNodeData: (id: string, data: Record<string, unknown>) => void;
+  updateEdgeData: (id: string, patch: Record<string, unknown>) => void;
   setDiagramName: (name: string) => void;
   setViewport: (viewport: Viewport) => void;
   setEdgeStyle: (style: EdgeStyle) => void;
+  setEdgeAnimated: (animated: boolean) => void;
+  setEdgeIcon: (icon: string | undefined) => void;
   setSelectedNodeId: (id: string | null) => void;
+  setSelectedEdgeId: (id: string | null) => void;
+  /** Move nodes into a group (sets parentNode + extent) */
+  assignNodesToGroup: (nodeIds: string[], groupId: string) => void;
+  /** Remove nodes from their group */
+  ungroupNodes: (nodeIds: string[]) => void;
   markSaved: () => void;
   discardChanges: () => void;
   reset: () => void;
@@ -62,17 +87,21 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
   isDirty: false,
   savedSnapshot: null,
   edgeStyle: 'smoothstep',
+  edgeAnimated: false,
+  edgeIcon: undefined,
   selectedNodeId: null,
+  selectedEdgeId: null,
 
   loadDiagram(meta, flowData) {
+    const normalizedNodes = normalizeNodes(flowData.nodes);
     const snapshot = {
-      nodes: flowData.nodes,
+      nodes: normalizedNodes,
       edges: flowData.edges,
       viewport: flowData.viewport,
     };
     set({
       meta,
-      nodes: flowData.nodes,
+      nodes: normalizedNodes,
       edges: flowData.edges,
       viewport: flowData.viewport,
       isDirty: false,
@@ -82,7 +111,7 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
   },
 
   setNodes(nodes) {
-    set({ nodes, isDirty: true });
+    set({ nodes: normalizeNodes(nodes), isDirty: true });
   },
 
   setEdges(edges) {
@@ -91,7 +120,7 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
 
   onNodesChange(changes) {
     set((state) => ({
-      nodes: applyNodeChanges(changes, state.nodes),
+      nodes: normalizeNodes(applyNodeChanges(changes, state.nodes)),
       isDirty: true,
     }));
   },
@@ -106,7 +135,15 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
   onConnect(connection) {
     set((state) => ({
       edges: addEdge(
-        { ...connection, type: state.edgeStyle },
+        {
+          ...connection,
+          type: 'diagramEdge',
+          data: {
+            animated: state.edgeAnimated,
+            icon: state.edgeIcon,
+            edgeStyle: state.edgeStyle,
+          },
+        },
         state.edges
       ),
       isDirty: true,
@@ -115,7 +152,7 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
 
   addNode(node) {
     set((state) => ({
-      nodes: [...state.nodes, node],
+      nodes: [...state.nodes, normalizeNode(node)],
       isDirty: true,
     }));
   },
@@ -124,6 +161,15 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
     set((state) => ({
       nodes: state.nodes.map((n) =>
         n.id === id ? { ...n, data: { ...n.data, ...data } } : n
+      ),
+      isDirty: true,
+    }));
+  },
+
+  updateEdgeData(id, patch) {
+    set((state) => ({
+      edges: state.edges.map((e) =>
+        e.id === id ? { ...e, data: { ...((e.data as Record<string, unknown>) ?? {}), ...patch } } : e
       ),
       isDirty: true,
     }));
@@ -144,8 +190,42 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
     set({ edgeStyle: style });
   },
 
+  setEdgeAnimated(animated) {
+    set({ edgeAnimated: animated });
+  },
+
+  setEdgeIcon(icon) {
+    set({ edgeIcon: icon });
+  },
+
   setSelectedNodeId(id) {
     set({ selectedNodeId: id });
+  },
+
+  setSelectedEdgeId(id) {
+    set({ selectedEdgeId: id });
+  },
+
+  assignNodesToGroup(nodeIds, groupId) {
+    set((state) => ({
+      nodes: state.nodes.map((n) =>
+        nodeIds.includes(n.id)
+          ? { ...n, parentNode: groupId, extent: 'parent' as const }
+          : n
+      ),
+      isDirty: true,
+    }));
+  },
+
+  ungroupNodes(nodeIds) {
+    set((state) => ({
+      nodes: state.nodes.map((n) => {
+        if (!nodeIds.includes(n.id)) return n;
+        const { parentNode: _p, extent: _e, ...rest } = n as Node & { parentNode?: string; extent?: string };
+        return rest as Node;
+      }),
+      isDirty: true,
+    }));
   },
 
   markSaved() {
@@ -165,6 +245,7 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
       viewport: savedSnapshot.viewport,
       isDirty: false,
       selectedNodeId: null,
+      selectedEdgeId: null,
     });
   },
 
@@ -177,6 +258,7 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
       isDirty: false,
       savedSnapshot: null,
       selectedNodeId: null,
+      selectedEdgeId: null,
     });
   },
 }));

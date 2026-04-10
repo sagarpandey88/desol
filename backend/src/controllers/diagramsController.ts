@@ -7,6 +7,7 @@ import {
   updateDiagram,
   deleteDiagram,
 } from '../db/queries/diagrams';
+import { getProjectById } from '../db/queries/projects';
 import { createVersion } from '../db/queries/versions';
 
 const EMPTY_FLOW = {
@@ -27,13 +28,28 @@ export async function list(req: AuthRequest, res: Response): Promise<void> {
 
 export async function create(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { name, diagram_type } = req.body as {
+    const { name, diagram_type, project_id } = req.body as {
       name: string;
       diagram_type: string;
+      project_id?: string | null;
     };
     const userId = req.user!.userId;
 
-    const diagram = await createDiagram(userId, name, diagram_type, EMPTY_FLOW);
+    if (project_id !== undefined && project_id !== null) {
+      const project = await getProjectById(project_id, userId);
+      if (!project) {
+        res.status(404).json({ error: 'Project not found' });
+        return;
+      }
+    }
+
+    const diagram = await createDiagram(
+      userId,
+      name,
+      diagram_type,
+      EMPTY_FLOW,
+      project_id ?? null
+    );
     await createVersion(diagram.id, EMPTY_FLOW, 'Initial', userId);
 
     res.status(201).json(diagram);
@@ -60,15 +76,25 @@ export async function getOne(req: AuthRequest, res: Response): Promise<void> {
 export async function update(req: AuthRequest, res: Response): Promise<void> {
   try {
     const userId = req.user!.userId;
-    const { name, flow_data, label } = req.body as {
+    const { name, flow_data, label, project_id } = req.body as {
       name?: string;
       flow_data?: Record<string, unknown>;
       label?: string;
+      project_id?: string | null;
     };
+
+    if (project_id !== undefined && project_id !== null) {
+      const project = await getProjectById(project_id, userId);
+      if (!project) {
+        res.status(404).json({ error: 'Project not found' });
+        return;
+      }
+    }
 
     const diagram = await updateDiagram(req.params.id, userId, {
       ...(name !== undefined && { name }),
       ...(flow_data !== undefined && { flowData: flow_data }),
+      ...(project_id !== undefined && { projectId: project_id }),
     });
 
     if (!diagram) {

@@ -7,6 +7,7 @@ import { useDiagramStore } from '../../stores/diagramStore';
 import EditorHeader from '../../components/Header/EditorHeader';
 import NodePalette from '../../components/Sidebar/NodePalette';
 import DiagramCanvas from '../../components/Canvas/DiagramCanvas';
+import CodeViewModal from '../../components/Canvas/CodeViewModal';
 
 export default function Editor() {
   const { diagramId } = useParams<{ diagramId: string }>();
@@ -19,6 +20,7 @@ export default function Editor() {
   const [saving, setSaving] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showCodeView, setShowCodeView] = useState(false);
 
   // Confirmation dialogs
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -147,6 +149,7 @@ export default function Editor() {
         onSave={handleSave}
         onDiscard={handleDiscard}
         onHistory={() => setShowHistory((v) => !v)}
+        onCodeView={() => setShowCodeView(true)}
         saving={saving}
         onBack={handleBack}
       />
@@ -163,6 +166,9 @@ export default function Editor() {
         onCloseHistory={() => setShowHistory(false)}
         onRestored={() => markSaved()}
       />
+
+      {/* Code View Modal */}
+      {showCodeView && <CodeViewModal onClose={() => setShowCodeView(false)} />}
 
       {/* Discard confirm */}
       {showDiscardConfirm && (

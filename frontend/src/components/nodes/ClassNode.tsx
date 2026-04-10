@@ -1,5 +1,8 @@
 import { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
+import { NodeResizer } from '@reactflow/node-resizer';
+import '@reactflow/node-resizer/dist/style.css';
+import { Box, Layers } from 'lucide-react';
 
 export interface ClassAttribute {
   name: string;
@@ -23,9 +26,17 @@ export interface ClassNodeData {
 function ClassNode({ data, selected }: NodeProps<ClassNodeData>) {
   return (
     <div className={`class-node${selected ? ' selected' : ''}`}>
+      <NodeResizer minWidth={160} minHeight={80} isVisible={selected} />
       <Handle type="target" position={Position.Top} />
       <Handle type="target" position={Position.Left} id="left" />
-      <div className="class-node__header">{data.className}</div>
+      <div className="class-node__header" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        {data.className.startsWith('<<') ? (
+          <Layers size={13} style={{ flexShrink: 0, opacity: 0.8 }} />
+        ) : (
+          <Box size={13} style={{ flexShrink: 0, opacity: 0.8 }} />
+        )}
+        <span>{data.className}</span>
+      </div>
 
       {(data.attributes ?? []).length > 0 && (
         <div className="class-node__section">

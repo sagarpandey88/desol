@@ -1,5 +1,8 @@
 import { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
+import { NodeResizer } from '@reactflow/node-resizer';
+import '@reactflow/node-resizer/dist/style.css';
+import { Table } from 'lucide-react';
 
 export interface ERDField {
   name: string;
@@ -17,9 +20,13 @@ export interface ERDNodeData {
 function ERDNode({ data, selected }: NodeProps<ERDNodeData>) {
   return (
     <div className={`erd-node${selected ? ' selected' : ''}`}>
+      <NodeResizer minWidth={160} minHeight={80} isVisible={selected} />
       <Handle type="target" position={Position.Left} />
       <Handle type="target" position={Position.Top} id="top" />
-      <div className="erd-node__header">{data.tableName}</div>
+      <div className="erd-node__header" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <Table size={12} style={{ flexShrink: 0, opacity: 0.7 }} />
+        <span>{data.tableName}</span>
+      </div>
       <div className="erd-node__fields">
         {(data.fields ?? []).map((f, i) => (
           <div key={i} className="erd-node__field">

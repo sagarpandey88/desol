@@ -17,9 +17,19 @@ export interface FlowData {
 export interface Diagram {
   id: string;
   user_id: string;
+  project_id: string | null;
+  project_name?: string | null;
   name: string;
   diagram_type: string;
   flow_data: FlowData;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Project {
+  id: string;
+  user_id: string;
+  name: string;
   created_at: string;
   updated_at: string;
 }
@@ -46,12 +56,13 @@ export async function listDiagrams(): Promise<Diagram[]> {
 
 export async function createDiagram(
   name: string,
-  diagram_type: string
+  diagram_type: string,
+  project_id?: string | null
 ): Promise<Diagram> {
   const res = await fetch(BASE, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ name, diagram_type }),
+    body: JSON.stringify({ name, diagram_type, project_id: project_id ?? null }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? 'Failed to create diagram');
@@ -69,11 +80,13 @@ export async function saveDiagram(
   id: string,
   flowData: FlowData,
   name?: string,
-  label?: string
+  label?: string,
+  project_id?: string | null
 ): Promise<Diagram> {
   const body: Record<string, unknown> = { flow_data: flowData };
   if (name) body.name = name;
   if (label) body.label = label;
+  if (project_id !== undefined) body.project_id = project_id;
 
   const res = await fetch(`${BASE}/${id}`, {
     method: 'PUT',
@@ -96,6 +109,20 @@ export async function renameDiagram(
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? 'Failed to rename diagram');
+  return data as Diagram;
+}
+
+export async function moveDiagram(
+  id: string,
+  project_id: string | null
+): Promise<Diagram> {
+  const res = await fetch(`${BASE}/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify({ project_id }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error ?? 'Failed to move diagram');
   return data as Diagram;
 }
 
