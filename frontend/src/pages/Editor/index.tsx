@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { Node, Edge } from 'reactflow';
 import { ReactFlowProvider } from 'reactflow';
@@ -12,6 +12,7 @@ import CodeViewModal from '../../components/Canvas/CodeViewModal';
 export default function Editor() {
   const { diagramId } = useParams<{ diagramId: string }>();
   const navigate = useNavigate();
+  const canvasRef = useRef<HTMLDivElement | null>(null);
   const { meta, nodes, edges, viewport, isDirty, loadDiagram, markSaved, discardChanges, reset } =
     useDiagramStore();
 
@@ -104,6 +105,34 @@ export default function Editor() {
     [diagramId, meta, nodes, edges, viewport, markSaved]
   );
 
+  const getCanvasExportTarget = useCallback(() => {
+    const root = canvasRef.current;
+    if (!root) return null;
+    return (root.querySelector('.react-flow__viewport') as HTMLElement | null) ?? root;
+  }, []);
+
+  const handleExportImage = useCallback(async () => {
+    const target = getCanvasExportTarget();
+    if (!target || !meta) return;
+    try {
+      const { exportElementAsImage } = await import('../../utils/diagramExport');
+      await exportElementAsImage(target, meta.name);
+    } catch (e) {
+      alert(`Export failed: ${(e as Error).message}`);
+    }
+  }, [getCanvasExportTarget, meta]);
+
+  const handleExportPdf = useCallback(async () => {
+    const target = getCanvasExportTarget();
+    if (!target || !meta) return;
+    try {
+      const { exportElementAsPdf } = await import('../../utils/diagramExport');
+      await exportElementAsPdf(target, meta.name);
+    } catch (e) {
+      alert(`Export failed: ${(e as Error).message}`);
+    }
+  }, [getCanvasExportTarget, meta]);
+
   function handleDiscard() {
     if (!isDirty) return;
     setShowDiscardConfirm(true);
@@ -150,6 +179,8 @@ export default function Editor() {
         onDiscard={handleDiscard}
         onHistory={() => setShowHistory((v) => !v)}
         onCodeView={() => setShowCodeView(true)}
+        onExportImage={handleExportImage}
+        onExportPdf={handleExportPdf}
         saving={saving}
         onBack={handleBack}
       />
@@ -162,6 +193,7 @@ export default function Editor() {
 
       {/* Canvas */}
       <DiagramCanvas
+        canvasRef={canvasRef}
         showHistory={showHistory}
         onCloseHistory={() => setShowHistory(false)}
         onRestored={() => markSaved()}

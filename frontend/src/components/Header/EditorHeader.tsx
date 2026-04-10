@@ -6,6 +6,8 @@ interface EditorHeaderProps {
   onDiscard: () => void;
   onHistory: () => void;
   onCodeView: () => void;
+  onExportImage: () => void;
+  onExportPdf: () => void;
   saving: boolean;
   onBack: () => void;
 }
@@ -15,6 +17,8 @@ export default function EditorHeader({
   onDiscard,
   onHistory,
   onCodeView,
+  onExportImage,
+  onExportPdf,
   saving,
   onBack,
 }: EditorHeaderProps) {
@@ -61,6 +65,20 @@ export default function EditorHeader({
           title="View diagram JSON"
         >
           {'{ }'}
+        </button>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={onExportImage}
+          title="Save diagram as PNG"
+        >
+          PNG
+        </button>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={onExportPdf}
+          title="Save diagram as PDF"
+        >
+          PDF
         </button>
         <button
           className="btn btn-ghost btn-sm"

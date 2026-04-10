@@ -1,4 +1,4 @@
-import { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useState, useEffect, type RefObject } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -34,12 +34,14 @@ interface GroupAssignModal {
 }
 
 interface DiagramCanvasProps {
+  canvasRef?: RefObject<HTMLDivElement>;
   showHistory: boolean;
   onCloseHistory: () => void;
   onRestored: () => void;
 }
 
 function CanvasInner({
+  canvasRef,
   showHistory,
   onCloseHistory,
   onRestored,
@@ -56,6 +58,9 @@ function CanvasInner({
     setSelectedEdgeId,
     selectedNodeId,
     selectedEdgeId,
+    copiedNode,
+    copySelectedNode,
+    pasteCopiedNode,
     setViewport,
   } = useDiagramStore();
 
@@ -63,9 +68,43 @@ function CanvasInner({
   const { project } = useReactFlow();
   const [ctxMenu, setCtxMenu] = useState<CtxMenu | null>(null);
   const [groupAssignModal, setGroupAssignModal] = useState<GroupAssignModal | null>(null);
+  const wrapperRef = canvasRef ?? reactFlowWrapper;
 
   // Groups available on canvas for the "Add to group" feature
   const groups = nodes.filter((n) => n.type === 'groupNode');
+
+  const isTypingTarget = (target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) return false;
+    return (
+      target.isContentEditable ||
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT'
+    );
+  };
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (isTypingTarget(e.target)) return;
+
+      const isCopy = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c';
+      const isPaste = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v';
+
+      if (isCopy && selectedNodeId) {
+        e.preventDefault();
+        copySelectedNode();
+        return;
+      }
+
+      if (isPaste && copiedNode) {
+        e.preventDefault();
+        pasteCopiedNode();
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedNodeId, copiedNode, copySelectedNode, pasteCopiedNode]);
 
   // Handle drag-over
   const onDragOver = useCallback((e: React.DragEvent) => {
@@ -80,7 +119,7 @@ function CanvasInner({
       const raw = e.dataTransfer.getData('application/desol-node');
       if (!raw) return;
 
-      const bounds = reactFlowWrapper.current?.getBoundingClientRect();
+      const bounds = wrapperRef.current?.getBoundingClientRect();
       if (!bounds) return;
 
       const { nodeType, nodeData } = JSON.parse(raw) as {
@@ -101,7 +140,6 @@ function CanvasInner({
         // Give group nodes a default size and send them behind other nodes
         ...(nodeType === 'groupNode' && {
           style: { width: 280, height: 180 },
-          zIndex: -1,
         }),
       };
 
@@ -167,7 +205,7 @@ function CanvasInner({
 
   return (
     <div
-      ref={reactFlowWrapper}
+      ref={wrapperRef}
       className="editor-canvas"
       onDragOver={onDragOver}
       onDrop={onDrop}

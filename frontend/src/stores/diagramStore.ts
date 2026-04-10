@@ -19,6 +19,13 @@ export interface DiagramMeta {
 
 export type EdgeStyle = 'default' | 'smoothstep' | 'straight';
 
+function cloneNode(node: Node): Node {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(node) as Node;
+  }
+  return JSON.parse(JSON.stringify(node)) as Node;
+}
+
 function normalizeNode(node: Node): Node {
   if (node.type !== 'groupNode') return node;
   return {
@@ -49,6 +56,7 @@ interface DiagramState {
   edgeIcon: string | undefined;
   selectedNodeId: string | null;
   selectedEdgeId: string | null;
+  copiedNode: Node | null;
 
   // Actions
   loadDiagram: (
@@ -70,6 +78,8 @@ interface DiagramState {
   setEdgeIcon: (icon: string | undefined) => void;
   setSelectedNodeId: (id: string | null) => void;
   setSelectedEdgeId: (id: string | null) => void;
+  copySelectedNode: () => void;
+  pasteCopiedNode: () => string | null;
   /** Move nodes into a group (sets parentNode + extent) */
   assignNodesToGroup: (nodeIds: string[], groupId: string) => void;
   /** Remove nodes from their group */
@@ -91,6 +101,7 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
   edgeIcon: undefined,
   selectedNodeId: null,
   selectedEdgeId: null,
+  copiedNode: null,
 
   loadDiagram(meta, flowData) {
     const normalizedNodes = normalizeNodes(flowData.nodes);
@@ -206,6 +217,40 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
     set({ selectedEdgeId: id });
   },
 
+  copySelectedNode() {
+    const { selectedNodeId, nodes } = get();
+    if (!selectedNodeId) return;
+
+    const selectedNode = nodes.find((node) => node.id === selectedNodeId);
+    if (!selectedNode) return;
+
+    set({ copiedNode: cloneNode(selectedNode) });
+  },
+
+  pasteCopiedNode() {
+    const { copiedNode } = get();
+    if (!copiedNode) return null;
+
+    const newNodeId = `${copiedNode.type}-${Date.now()}`;
+    const newNode = normalizeNode({
+      ...cloneNode(copiedNode),
+      id: newNodeId,
+      position: {
+        x: copiedNode.position.x + 24,
+        y: copiedNode.position.y + 24,
+      },
+    });
+
+    set((state) => ({
+      nodes: [...state.nodes, newNode],
+      selectedNodeId: newNodeId,
+      selectedEdgeId: null,
+      isDirty: true,
+    }));
+
+    return newNodeId;
+  },
+
   assignNodesToGroup(nodeIds, groupId) {
     set((state) => ({
       nodes: state.nodes.map((n) =>
@@ -259,6 +304,7 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
       savedSnapshot: null,
       selectedNodeId: null,
       selectedEdgeId: null,
+      copiedNode: null,
     });
   },
 }));

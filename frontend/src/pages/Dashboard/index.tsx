@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ReactFlow, { Background, getNodesBounds, type Edge, type Node } from 'reactflow';
 import {
   listDiagrams,
   createDiagram,
@@ -13,6 +14,10 @@ import {
   listProjects,
   type Project,
 } from '../../api/projects';
+import { nodeTypes } from '../../components/nodes';
+import DiagramEdge from '../../components/Canvas/edges/DiagramEdge';
+
+const edgeTypes = { diagramEdge: DiagramEdge };
 
 const DIAGRAM_TYPES = [
   { value: 'architecture', label: 'Architecture Block', icon: '🏗️' },
@@ -33,6 +38,14 @@ const TYPE_ICONS: Record<string, string> = {
 };
 
 const UNASSIGNED_PROJECT_ID = '__unassigned__';
+
+type PdfPreviewDiagram = Diagram & {
+  flow_data: {
+    nodes: Node[];
+    edges: Edge[];
+    viewport: { x: number; y: number; zoom: number };
+  };
+};
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -122,6 +135,8 @@ export default function Dashboard() {
 
   // Delete confirm
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [pdfPreviewDiagram, setPdfPreviewDiagram] = useState<PdfPreviewDiagram | null>(null);
+  const pdfPreviewRef = useRef<HTMLDivElement | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -146,6 +161,36 @@ export default function Dashboard() {
     () => groupDiagrams(diagrams, projects),
     [diagrams, projects]
   );
+
+  const pdfPreviewSize = useMemo(() => {
+    if (!pdfPreviewDiagram) {
+      return { width: 1200, height: 900 };
+    }
+
+    const bounds = getNodesBounds(pdfPreviewDiagram.flow_data.nodes);
+    const padding = 240;
+    return {
+      width: Math.max(Math.ceil(bounds.width + padding), 1200),
+      height: Math.max(Math.ceil(bounds.height + padding), 900),
+    };
+  }, [pdfPreviewDiagram]);
+
+  function waitForPaint() {
+    return new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => resolve());
+      });
+    });
+  }
+
+  function loadImage(dataUrl: string) {
+    return new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('Unable to prepare PDF export'));
+      image.src = dataUrl;
+    });
+  }
 
   function handleLogout() {
     localStorage.removeItem('desol_token');
@@ -235,6 +280,72 @@ export default function Dashboard() {
       setDeleteId(null);
     } catch (e) {
       alert((e as Error).message);
+    }
+  }
+
+  async function handleExportProjectPdf(sectionTitle: string, items: Diagram[]) {
+    if (items.length === 0) return;
+
+    const { captureElementAsPng } = await import('../../utils/diagramExport');
+    const { jsPDF } = await import('jspdf');
+
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 28;
+    const headerHeight = 44;
+    const availableWidth = pageWidth - margin * 2;
+    const availableHeight = pageHeight - margin * 2 - headerHeight;
+
+    try {
+      for (let index = 0; index < items.length; index += 1) {
+        const diagram = items[index] as PdfPreviewDiagram;
+        setPdfPreviewDiagram(diagram);
+        await waitForPaint();
+
+        const previewRoot = pdfPreviewRef.current;
+        const previewViewport = previewRoot?.querySelector(
+          '.react-flow__viewport'
+        ) as HTMLElement | null;
+
+        if (!previewViewport) {
+          throw new Error('Project PDF preview not ready');
+        }
+
+        const dataUrl = await captureElementAsPng(previewViewport);
+        const image = await loadImage(dataUrl);
+
+        if (index > 0) {
+          pdf.addPage();
+        }
+
+        const scale = Math.min(
+          availableWidth / image.width,
+          availableHeight / image.height
+        );
+        const imageWidth = image.width * scale;
+        const imageHeight = image.height * scale;
+        const imageX = margin + (availableWidth - imageWidth) / 2;
+        const imageY = margin + headerHeight;
+
+        pdf.setFontSize(16);
+        pdf.setTextColor(15, 23, 42);
+        pdf.text(diagram.name, margin, margin + 8);
+        pdf.setFontSize(10);
+        pdf.setTextColor(100, 116, 139);
+        pdf.text(`${diagram.diagram_type} • ${sectionTitle}`, margin, margin + 22);
+        pdf.addImage(dataUrl, 'PNG', imageX, imageY, imageWidth, imageHeight);
+      }
+
+      pdf.save(
+        `${sectionTitle
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '') || 'project'}.pdf`
+      );
+    } finally {
+      setPdfPreviewDiagram(null);
     }
   }
 
@@ -330,6 +441,20 @@ export default function Dashboard() {
                   >
                     + Add Diagram
                   </button>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        await handleExportProjectPdf(section.title, section.diagrams);
+                      } catch (err) {
+                        alert((err as Error).message);
+                      }
+                    }}
+                    disabled={section.diagrams.length === 0}
+                  >
+                    Export PDF
+                  </button>
                 </div>
 
                 <div className="diagram-list">
@@ -404,6 +529,41 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {pdfPreviewDiagram && (
+        <div className="project-pdf-export-stage" ref={pdfPreviewRef} aria-hidden="true">
+          <div
+            className="project-pdf-export-stage__frame"
+            style={{ width: pdfPreviewSize.width, height: pdfPreviewSize.height }}
+          >
+            <div className="project-pdf-export-stage__header">
+              <h3>{pdfPreviewDiagram.name}</h3>
+              <p>{pdfPreviewDiagram.diagram_type}</p>
+            </div>
+            <div className="project-pdf-export-stage__canvas">
+              <ReactFlow
+                nodes={pdfPreviewDiagram.flow_data.nodes}
+                edges={pdfPreviewDiagram.flow_data.edges}
+                nodeTypes={nodeTypes}
+                edgeTypes={edgeTypes}
+                fitView
+                fitViewOptions={{ padding: 0.15 }}
+                nodesDraggable={false}
+                nodesConnectable={false}
+                elementsSelectable={false}
+                panOnDrag={false}
+                zoomOnScroll={false}
+                zoomOnPinch={false}
+                zoomOnDoubleClick={false}
+                panOnScroll={false}
+                proOptions={{ hideAttribution: true }}
+              >
+                <Background gap={16} size={1} />
+              </ReactFlow>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showNew && (
         <div className="modal-overlay" onClick={() => setShowNew(false)}>
