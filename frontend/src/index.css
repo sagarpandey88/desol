@@ -40,6 +40,31 @@
   }
 }
 
+/* Theme override via HTML attribute: set on the <html> element
+   Example: <html data-theme="dark"> or document.documentElement.setAttribute('data-theme','dark') */
+:root[data-theme='dark'] {
+  --color-bg: #0f172a;
+  --color-surface: #1e293b;
+  --color-surface-2: #334155;
+  --color-border: #334155;
+  --color-text: #f1f5f9;
+  --color-text-muted: #94a3b8;
+  --color-shadow: rgba(0, 0, 0, 0.3);
+  --color-shadow-lg: rgba(0, 0, 0, 0.5);
+}
+
+:root[data-theme='light'] {
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-2: #f1f5f9;
+  --color-border: #e2e8f0;
+  --color-border-focus: #6366f1;
+  --color-text: #0f172a;
+  --color-text-muted: #64748b;
+  --color-shadow: rgba(0, 0, 0, 0.08);
+  --color-shadow-lg: rgba(0, 0, 0, 0.16);
+}
+
 /* ===== Reset & Base ===== */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -271,6 +296,23 @@ input, textarea, select {
   border-radius: var(--radius-xl);
   box-shadow: 0 8px 24px var(--color-shadow);
   overflow: hidden;
+}
+
+/* Simple dropdown styling (fallback for projects not using Tailwind/DaisyUI)
+   Ensures `.dropdown-content` overlays and doesn't flow the document. */
+.dropdown {
+  position: relative;
+}
+.dropdown .dropdown-content {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 6px;
+  z-index: 50;
+  display: none;
+}
+.dropdown.open .dropdown-content {
+  display: block;
 }
 
 .diagram-section__header {

@@ -2,6 +2,8 @@ import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { loginUser } from '../../api/auth';
 
+import ThemeToggle from '../../components/ThemeToggle';
+
 export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -38,7 +40,10 @@ export default function Login() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div className="auth-logo">Desol</div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <ThemeToggle />
+          </div>
+          <div className="auth-logo">Desol</div>
         <h1 className="auth-title">Welcome back</h1>
         <p className="auth-subtitle">Sign in to your account</p>
 

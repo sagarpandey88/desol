@@ -1,3 +1,4 @@
+import React, { useEffect, useState, useRef } from 'react';
 import { useAutoLayout } from '../../hooks/useAutoLayout';
 import { useDiagramStore } from '../../stores/diagramStore';
 
@@ -24,6 +25,42 @@ export default function EditorHeader({
 }: EditorHeaderProps) {
   const { meta, isDirty, setDiagramName } = useDiagramStore();
   const { runLayout } = useAutoLayout();
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window === 'undefined') return 'light';
+    const attr = document.documentElement.getAttribute('data-theme');
+    if (attr === 'dark' || attr === 'light') return attr as 'dark' | 'light';
+    const ls = localStorage.getItem('theme');
+    if (ls === 'dark' || ls === 'light') return ls as 'dark' | 'light';
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    try { localStorage.setItem('theme', theme); } catch (e) { /* ignore */ }
+  }, [theme]);
+
+  // Close export dropdown on outside click or Escape
+  useEffect(() => {
+    function onDocMouse(e: MouseEvent) {
+      if (!dropdownRef.current) return;
+      if (!dropdownRef.current.contains(e.target as Node)) setExportOpen(false);
+    }
+    function onEsc(e: KeyboardEvent) {
+      if (e.key === 'Escape') setExportOpen(false);
+    }
+    document.addEventListener('mousedown', onDocMouse);
+    document.addEventListener('keydown', onEsc);
+    return () => {
+      document.removeEventListener('mousedown', onDocMouse);
+      document.removeEventListener('keydown', onEsc);
+    };
+  }, []);
+
+  const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
 
   return (
     <header className="editor-header">
@@ -54,10 +91,10 @@ export default function EditorHeader({
       <div className="editor-header__right">
         <button
           className="btn btn-ghost btn-sm"
-          onClick={runLayout}
-          title="Re-layout nodes with Dagre"
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
         >
-          ⚙ Re-layout
+          {theme === 'dark' ? '☀️' : '🌙'}
         </button>
         <button
           className="btn btn-ghost btn-sm"
@@ -66,20 +103,38 @@ export default function EditorHeader({
         >
           {'{ }'}
         </button>
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={onExportImage}
-          title="Save diagram as PNG"
+        <div
+          className={`dropdown${exportOpen ? ' open' : ''}`}
+          style={{ position: 'relative' }}
+          ref={dropdownRef}
         >
-          PNG
-        </button>
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={onExportPdf}
-          title="Save diagram as PDF"
-        >
-          PDF
-        </button>
+          <button
+            className="btn btn-ghost btn-sm"
+            tabIndex={0}
+            title="Export options"
+            aria-haspopup="true"
+            aria-expanded={exportOpen}
+            onClick={() => setExportOpen((v) => !v)}
+          >
+            Export
+          </button>
+          <ul
+            tabIndex={0}
+            className="dropdown-content menu p-2 shadow rounded-box w-36"
+            style={{ position: 'absolute', right: 0, marginTop: 6, zIndex: 50, background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+          >
+            <li>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setExportOpen(false); onExportImage(); }} title="Save diagram as PNG">
+                PNG
+              </button>
+            </li>
+            <li>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setExportOpen(false); onExportPdf(); }} title="Save diagram as PDF">
+                PDF
+              </button>
+            </li>
+          </ul>
+        </div>
         <button
           className="btn btn-ghost btn-sm"
           onClick={onHistory}

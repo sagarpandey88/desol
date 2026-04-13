@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ThemeToggle from '../../components/ThemeToggle';
 import ReactFlow, { Background, getNodesBounds, type Edge, type Node } from 'reactflow';
 import {
   listDiagrams,
@@ -355,6 +356,7 @@ export default function Dashboard() {
         <span className="dashboard-nav__logo">Desol</span>
         <div className="dashboard-nav__right">
           {user && <span className="dashboard-nav__email">{user.email}</span>}
+          <ThemeToggle />
           <button className="btn btn-secondary btn-sm" onClick={handleLogout}>
             Logout
           </button>

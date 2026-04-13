@@ -1,6 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { registerUser } from '../../api/auth';
+import ThemeToggle from '../../components/ThemeToggle';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -49,7 +50,10 @@ export default function Register() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <div className="auth-logo">Desol</div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <ThemeToggle />
+          </div>
+          <div className="auth-logo">Desol</div>
         <h1 className="auth-title">Create an account</h1>
         <p className="auth-subtitle">Start designing beautiful diagrams</p>
 
