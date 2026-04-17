@@ -4,6 +4,7 @@ import cors from 'cors';
 import authRoutes from './routes/auth';
 import diagramRoutes from './routes/diagrams';
 import projectRoutes from './routes/projects';
+import agentRoutes from './routes/agents';
 import { runMigrations } from './db/migrate';
 
 const app = express();
@@ -16,6 +17,7 @@ app.use(express.json({ limit: '5mb' }));
 app.use('/api/auth', authRoutes);
 app.use('/api/diagrams', diagramRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api', agentRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

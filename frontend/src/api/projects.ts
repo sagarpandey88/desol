@@ -19,11 +19,11 @@ export async function listProjects(): Promise<Project[]> {
   return data as Project[];
 }
 
-export async function createProject(name: string): Promise<Project> {
+export async function createProject(name: string, description?: string | null): Promise<Project> {
   const res = await fetch(BASE, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, description: description ?? null }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? 'Failed to create project');

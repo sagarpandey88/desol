@@ -9,6 +9,8 @@ interface EditorHeaderProps {
   onCodeView: () => void;
   onExportImage: () => void;
   onExportPdf: () => void;
+  onChat: () => void;
+  chatOpen: boolean;
   saving: boolean;
   onBack: () => void;
 }
@@ -20,6 +22,8 @@ export default function EditorHeader({
   onCodeView,
   onExportImage,
   onExportPdf,
+  onChat,
+  chatOpen,
   saving,
   onBack,
 }: EditorHeaderProps) {
@@ -141,6 +145,13 @@ export default function EditorHeader({
           title="Version History"
         >
           🕐 History
+        </button>
+        <button
+          className={`btn btn-sm${chatOpen ? ' btn-primary' : ' btn-ghost'}`}
+          onClick={onChat}
+          title="AI Diagram Chat"
+        >
+          💬 Chat
         </button>
         <button
           className="btn btn-secondary btn-sm"

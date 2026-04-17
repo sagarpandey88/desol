@@ -15,6 +15,7 @@ import {
   listProjects,
   type Project,
 } from '../../api/projects';
+import { streamGenerateDiagrams, type GenerateEvent } from '../../api/agent';
 import { nodeTypes } from '../../components/nodes';
 import DiagramEdge from '../../components/Canvas/edges/DiagramEdge';
 
@@ -123,8 +124,13 @@ export default function Dashboard() {
   // New project modal
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [projectName, setProjectName] = useState('');
+  const [projectDescription, setProjectDescription] = useState('');
   const [projectError, setProjectError] = useState('');
   const [creatingProject, setCreatingProject] = useState(false);
+
+  // AI generation progress
+  const [generatingProjectId, setGeneratingProjectId] = useState<string | null>(null);
+  const [generationEvents, setGenerationEvents] = useState<GenerateEvent[]>([]);
 
   // Rename modal
   const [renameId, setRenameId] = useState<string | null>(null);
@@ -233,10 +239,28 @@ export default function Dashboard() {
     setCreatingProject(true);
     setProjectError('');
     try {
-      const project = await createProject(projectName.trim());
+      const project = await createProject(projectName.trim(), projectDescription.trim() || null);
       setProjects((prev) => [project, ...prev]);
       setShowProjectModal(false);
       setProjectName('');
+      setProjectDescription('');
+
+      // If description provided, start AI generation
+      if (projectDescription.trim()) {
+        setGeneratingProjectId(project.id);
+        setGenerationEvents([]);
+        streamGenerateDiagrams(project.id, (event) => {
+          setGenerationEvents((prev) => [...prev, event]);
+          if (event.type === 'done') {
+            void loadData();
+          }
+        }).catch((err: Error) => {
+          setGenerationEvents((prev) => [
+            ...prev,
+            { type: 'error', payload: { diagramType: 'all', message: err.message } },
+          ]);
+        });
+      }
     } catch (e) {
       setProjectError((e as Error).message);
     } finally {
@@ -665,12 +689,27 @@ export default function Dashboard() {
               />
               {projectError && <span className="form-error">{projectError}</span>}
             </div>
+            <div className="form-group" style={{ marginTop: 12 }}>
+              <label className="form-label" htmlFor="project-description">
+                Description <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional — AI will generate diagrams)</span>
+              </label>
+              <textarea
+                id="project-description"
+                className="form-input"
+                value={projectDescription}
+                onChange={(e) => setProjectDescription(e.target.value)}
+                placeholder="Describe your project in a few sentences…"
+                rows={4}
+                style={{ resize: 'vertical' }}
+              />
+            </div>
             <div className="modal__footer">
               <button
                 className="btn btn-secondary"
                 onClick={() => {
                   setShowProjectModal(false);
                   setProjectName('');
+                  setProjectDescription('');
                   setProjectError('');
                 }}
               >
@@ -684,6 +723,68 @@ export default function Dashboard() {
                 {creatingProject ? 'Creating…' : 'Create Project'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {generatingProjectId && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ minWidth: 360, maxWidth: 480 }}>
+            <h2 className="modal__title">Generating Diagrams</h2>
+            <p style={{ opacity: 0.7, marginBottom: 16 }}>
+              AI is analysing your project description and building diagrams…
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {generationEvents.map((event, i) => {
+                if (event.type === 'start') {
+                  return (
+                    <div key={i} style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {event.payload.applicableTypes.map((t) => (
+                        <span key={t} className={`badge badge-${t}`}>{t}</span>
+                      ))}
+                    </div>
+                  );
+                }
+                if (event.type === 'diagram_saved') {
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ color: 'var(--color-success, #22c55e)' }}>✓</span>
+                      <span className={`badge badge-${event.payload.diagramType}`}>{event.payload.diagramType}</span>
+                      <span>{event.payload.name}</span>
+                    </div>
+                  );
+                }
+                if (event.type === 'error') {
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ color: 'var(--color-danger)' }}>✗</span>
+                      <span>{event.payload.diagramType}: {event.payload.message}</span>
+                    </div>
+                  );
+                }
+                return null;
+              })}
+              {generationEvents.some((e) => e.type === 'start') &&
+                !generationEvents.some((e) => e.type === 'done') && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: 0.6 }}>
+                    <div className="spinner" style={{ width: 14, height: 14 }} />
+                    <span>Working…</span>
+                  </div>
+                )}
+            </div>
+            {generationEvents.some((e) => e.type === 'done') && (
+              <div className="modal__footer" style={{ marginTop: 16 }}>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setGeneratingProjectId(null);
+                    setGenerationEvents([]);
+                  }}
+                >
+                  Done
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

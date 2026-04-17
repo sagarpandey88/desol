@@ -8,6 +8,7 @@ import EditorHeader from '../../components/Header/EditorHeader';
 import NodePalette from '../../components/Sidebar/NodePalette';
 import DiagramCanvas from '../../components/Canvas/DiagramCanvas';
 import CodeViewModal from '../../components/Canvas/CodeViewModal';
+import DiagramChatPanel from '../../components/Canvas/DiagramChatPanel';
 
 export default function Editor() {
   const { diagramId } = useParams<{ diagramId: string }>();
@@ -22,6 +23,7 @@ export default function Editor() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showCodeView, setShowCodeView] = useState(false);
+  const [showChat, setShowChat] = useState(false);
 
   // Confirmation dialogs
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -181,6 +183,8 @@ export default function Editor() {
         onCodeView={() => setShowCodeView(true)}
         onExportImage={handleExportImage}
         onExportPdf={handleExportPdf}
+        onChat={() => setShowChat((v) => !v)}
+        chatOpen={showChat}
         saving={saving}
         onBack={handleBack}
       />
@@ -201,6 +205,14 @@ export default function Editor() {
 
       {/* Code View Modal */}
       {showCodeView && <CodeViewModal onClose={() => setShowCodeView(false)} />}
+
+      {/* AI Chat Panel */}
+      {showChat && diagramId && (
+        <DiagramChatPanel
+          diagramId={diagramId}
+          onClose={() => setShowChat(false)}
+        />
+      )}
 
       {/* Discard confirm */}
       {showDiscardConfirm && (

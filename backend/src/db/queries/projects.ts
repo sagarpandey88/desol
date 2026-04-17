@@ -4,13 +4,14 @@ export interface ProjectRow {
   id: string;
   user_id: string;
   name: string;
+  description: string | null;
   created_at: Date;
   updated_at: Date;
 }
 
 export async function listProjectsByUser(userId: string): Promise<ProjectRow[]> {
   const { rows } = await pool.query<ProjectRow>(
-    `SELECT id, user_id, name, created_at, updated_at
+    `SELECT id, user_id, name, description, created_at, updated_at
      FROM projects
      WHERE user_id = $1
      ORDER BY created_at DESC`,
@@ -21,13 +22,14 @@ export async function listProjectsByUser(userId: string): Promise<ProjectRow[]> 
 
 export async function createProject(
   userId: string,
-  name: string
+  name: string,
+  description?: string | null
 ): Promise<ProjectRow> {
   const { rows } = await pool.query<ProjectRow>(
-    `INSERT INTO projects (user_id, name)
-     VALUES ($1, $2)
+    `INSERT INTO projects (user_id, name, description)
+     VALUES ($1, $2, $3)
      RETURNING *`,
-    [userId, name]
+    [userId, name, description ?? null]
   );
   return rows[0];
 }
@@ -37,7 +39,7 @@ export async function getProjectById(
   userId: string
 ): Promise<ProjectRow | null> {
   const { rows } = await pool.query<ProjectRow>(
-    `SELECT id, user_id, name, created_at, updated_at
+    `SELECT id, user_id, name, description, created_at, updated_at
      FROM projects
      WHERE id = $1 AND user_id = $2`,
     [id, userId]

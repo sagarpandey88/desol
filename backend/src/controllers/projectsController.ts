@@ -19,8 +19,8 @@ export async function list(req: AuthRequest, res: Response): Promise<void> {
 
 export async function create(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { name } = req.body as { name: string };
-    const project = await createProject(req.user!.userId, name);
+    const { name, description } = req.body as { name: string; description?: string | null };
+    const project = await createProject(req.user!.userId, name, description ?? null);
     res.status(201).json(project);
   } catch (err) {
     console.error('create project error:', err);
