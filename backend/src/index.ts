@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
 import authRoutes from './routes/auth';
 import diagramRoutes from './routes/diagrams';
 import projectRoutes from './routes/projects';
@@ -21,6 +22,13 @@ app.use('/api', agentRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Serve frontend static assets if present
+const staticPath = path.join(__dirname, 'public');
+app.use(express.static(staticPath));
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(staticPath, 'index.html'));
 });
 
 async function start(): Promise<void> {

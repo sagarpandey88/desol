@@ -1,5 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useAutoLayout } from '../../hooks/useAutoLayout';
+import { useEffect, useState, useRef } from 'react';
 import { useDiagramStore } from '../../stores/diagramStore';
 
 interface EditorHeaderProps {
@@ -28,7 +27,6 @@ export default function EditorHeader({
   onBack,
 }: EditorHeaderProps) {
   const { meta, isDirty, setDiagramName } = useDiagramStore();
-  const { runLayout } = useAutoLayout();
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
